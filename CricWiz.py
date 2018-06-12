@@ -15,31 +15,55 @@ def main():
     if args['livescore']:
         liveScore()
         sleep(1)
-        choice = input("\nDo you want to see the full Scorecard or commentary of any match?(y/n)")
+        choice = input("\nDo you want to get details of any of the above matches? (y/n) :")
 
         if choice.lower() == "y":
             sleep(1)
             ans = input("\nWhat do you want to get?\n\
-            1. Full scorecard\n\
-            2. Commentary\n\
-            3. Both\n\
-            Enter your choice: ")
+               1. Scorecard\n\
+               2. Commentary\n\
+               3. Squad\nEnter your choice: ")
             sleep(1)
 
             if ans == "1":
                 match_id = (input("\nEnter the Match ID of that match: "))
-                scoreCard(match_id)
+                ch = check(match_id)
+
+                if ch == 1:
+                    print(colors("\nMatch has not yet started But you can check out the Squad!\n", 31))
+                    squad(match_id)
+                elif ch == 0:
+                    print(colors("\nMatch is still in progress\n", 32))
+                    scoreCard(match_id)
+                    notified = input("Hey there, This match is live do you want to get notified about this match?(y/n)")
+                    if notified.lower() == "y":
+                        print(colors("You will be notified!( Just press Ctrl + c to stop getting notifications)", 32))
+                        try:
+                            while True:
+                                send(match_id)
+                        except KeyboardInterrupt:
+                            pass
+
+                elif ch == 2:
+                    print("\nInnings Break\n")
+                    scoreCard(match_id)
+                elif ch == -1:
+                    scoreCard(match_id)
+
             elif ans == "2":
                 match_id = (input("\nEnter the Match ID of that match: "))
                 commentary(match_id)
             elif ans == "3":
                 match_id = (input("\nEnter the Match ID of that match: "))
-                scoreCard(match_id)
-                commentary(match_id)
+                squad(match_id)
+
             else:
-                print(colors("\nWrong choice!Please select a valid choice!", 31))
-        else:
+                print(colors("\nWrong choice!Please select a valid choice!\n", 31))
+        elif choice.lower() == "n":
+            print(colors("\nThank You for using CricWiz, have a nice day!\n", 35))
             sys.exit()
+        else:
+            print(colors("\nWrong choice!Please select a valid choice!\n", 31))
 
 
 def liveScore():
@@ -59,14 +83,7 @@ def liveScore():
         status = game['matchinfo']['status']
         counter = counter + 1
         my_data.append([counter, idey, head, teams, matchType, status])
-    print(colors(tabulate(my_data, headers=headers, tablefmt="grid"), 32))
-
-    for match in matches:
-        if status.lower() == "inprogress":
-            notified = input("Hey there, {} is live do you want to get notified about this match?(y/n)".format(teams))
-            if notified.lower() == "y":
-                print(colors("You will be notified!", 32))
-                sendmessage("{} - {} / {}({} Ovs)".format(batteam, runs, wickets, overs))
+    print(colors(tabulate(my_data, headers=headers, tablefmt="fancy_grid"), 32))
 
 
 def commentary(mid):
@@ -77,9 +94,10 @@ def commentary(mid):
     for match in matches:
         if match['id'] == mid:
             commentary = c.commentary(match['id'])['commentary']
-            print("\n--COMMENTARY--")
+            print("\n--COMMENTARY--\n")
             for index in commentary:
                 print(colors(index, 32))
+            print("\n")
 
 
 def scoreCard(mid):
@@ -92,24 +110,25 @@ def scoreCard(mid):
     for match in matches:
         if match['id'] == mid:
             game = c.scorecard(match['id'])
-            for i in range(2):
-                wickets = game['scorecard'][i]['wickets']
-                runs = game['scorecard'][i]['runs']
-                bowlteam = game['scorecard'][i]['bowlteam']
-                overs = game['scorecard'][i]['overs']
-                batteam = game['scorecard'][i]['batteam']
-                runrate = game['scorecard'][i]['runrate']
-                print("\n{}st INNINGS! )".format(2 - i))
-                print(colors("{} - {} / {}({} Ovs)".format(batteam, runs, wickets, overs), 32))
-                sleep(1)
-                print("\n--Batting Card--")
-                battCard(game, i)
-                sleep(1)
-                print("\n--Bowling Card--")
-                bowlCard(game, i)
-                sleep(1)
-
-            squad(game)
+            try:
+                for i in range(2):
+                    wickets = game['scorecard'][i]['wickets']
+                    runs = game['scorecard'][i]['runs']
+                    bowlteam = game['scorecard'][i]['bowlteam']
+                    overs = game['scorecard'][i]['overs']
+                    batteam = game['scorecard'][i]['batteam']
+                    runrate = game['scorecard'][i]['runrate']
+                    print("\n{}st INNINGS!\n".format(2 - i))
+                    print(colors("{} - {} / {}({} Ovs)".format(batteam, runs, wickets, overs), 32))
+                    sleep(1)
+                    print("\n--BATTING CARD--\n")
+                    battCard(game, i)
+                    sleep(1)
+                    print("\n--BOWLING CARD--\n")
+                    bowlCard(game, i)
+                    sleep(1)
+            except IndexError:
+                pass
 
 
 def bowlCard(game, i):
@@ -134,7 +153,7 @@ def bowlCard(game, i):
     except IndexError:
         pass
     finally:
-        print(colors(tabulate(my_data, headers=header, tablefmt="grid"), 32))
+        print(colors(tabulate(my_data, headers=header, tablefmt="fancy_grid"), 32))
 
 
 def battCard(game, i):
@@ -161,30 +180,71 @@ def battCard(game, i):
     except IndexError:
         pass
     finally:
-        print(colors(tabulate(my_data, headers=header, tablefmt="grid"), 32))
+        print(colors(tabulate(my_data, headers=header, tablefmt="fancy_grid"), 32))
 
 
-def squad(game):
+def squad(mid):
     """ To display the squad for the individual teams available for the match"""
 
     header = ["S.no", "Player"]
-    for i in range(2):
-        my_data = []
-        counter = 1
-        squad = game['squad'][i]['members']
-        sq_team = game['squad'][i]['team']
-        print(colors("\n--{} Squad--\n".format(sq_team), 32))
-        for member in game['squad'][i]['members']:
-            my_data.append([counter, member])
-            counter += 1
-        print(tabulate(my_data, headers=header, tablefmt="plain"))
-        print("\n")
-        sleep(1)
+    c = Cricbuzz()
+    game = c.scorecard(mid)
+    try:
+        for i in range(2):
+            my_data = []
+            counter = 1
+            squad = game['squad'][i]['members']
+            sq_team = game['squad'][i]['team']
+            print(colors("\n--{} Squad--\n".format(sq_team), 32))
+            for member in game['squad'][i]['members']:
+                my_data.append([counter, member])
+                counter += 1
+            print(tabulate(my_data, headers=header, tablefmt="fancy_grid"))
+            print("\n")
+    except KeyError:
+        game = c.commentary(mid)
+        try:
+            for i in range(1, 4):
+                print("\n" + game['commentary'][i])
+
+        except IndexError:
+            pass
 
 
-def sendmessage(message):
+def check(mid):
+    """ To check is the match has already started or not"""
+
+    c = Cricbuzz()
+    game = c.commentary(mid)
+    state = game['matchinfo']['mchstate']
+    if state.lower() == "preview":
+        return 1
+    elif state.lower() == "inprogress":
+        return 0
+    elif state.lower() == "innings break":
+        return 2
+    elif state.lower() == "result":
+        return -1
+    else:
+        sys.exit()
+
+
+def send(mid):
     """ To send the notification about the live score update"""
 
+    c = Cricbuzz()
+    game = c.scorecard(mid)
+    try:
+        for i in range(1):
+            wickets = game['scorecard'][i]['wickets']
+            runs = game['scorecard'][i]['runs']
+            bowlteam = game['scorecard'][i]['bowlteam']
+            overs = game['scorecard'][i]['overs']
+            batteam = game['scorecard'][i]['batteam']
+            runrate = game['scorecard'][i]['runrate']
+            message = "{} - {} / {}( {} Ovs )".format(batteam, runs, wickets, overs)
+    except IndexError:
+        pass
     s.call(['notify-send', message])
     sleep(60)
 
