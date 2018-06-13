@@ -26,7 +26,7 @@ python3 CricWiz.py -l livescore
  ![alt text](https://github.com/ugtan/CricWiz/raw/master/images/example3.png "Scorecard 2")
  ![alt text](https://github.com/ugtan/CricWiz/raw/master/images/example4.png "Scorecard 3")
 
- *Notification Alerts
+ * Notification Alerts
 
  ![alt text](https://github.com/ugtan/CricWiz/raw/master/images/example5.png "Live Score Update")
 
