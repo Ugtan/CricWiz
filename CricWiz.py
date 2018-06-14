@@ -13,9 +13,9 @@ def main():
     args = vars(parser.parse_args())
 
     if args['livescore']:
-        liveScore()
+        Rmatches()
         sleep(1)
-        choice = input("\nDo you want to get details of any of the above matches? (y/n) :")
+        choice = input(colors("\nDo you want to get details of any of the above matches? (y/n) :", 36))
 
         if choice.lower() == "y":
             sleep(1)
@@ -24,16 +24,13 @@ def main():
                2. Commentary\n\
                3. Squad\nEnter your choice: ")
             sleep(1)
-
+            match_id = (input("\nEnter the Match ID of that match: "))
+            ch = check(match_id)
             if ans == "1":
-                match_id = (input("\nEnter the Match ID of that match: "))
-                ch = check(match_id)
+                if ch == "preview":
+                    print(colors("\nMatch has not yet started!\n", 31))
 
-                if ch == 1:
-                    print(colors("\nMatch has not yet started But you can check out the Squad!\n", 31))
-                    squad(match_id)
-                elif ch == 0:
-                    print(colors("\nMatch is still in progress\n", 32))
+                elif ch == "inprogress":
                     scoreCard(match_id)
                     notified = input("Hey there, This match is live do you want to get notified about this match?(y/n)")
                     if notified.lower() == "y":
@@ -43,19 +40,19 @@ def main():
                                 send(match_id)
                         except KeyboardInterrupt:
                             pass
-
-                elif ch == 2:
-                    print("\nInnings Break\n")
-                    scoreCard(match_id)
-                elif ch == -1:
+                else:
                     scoreCard(match_id)
 
             elif ans == "2":
-                match_id = (input("\nEnter the Match ID of that match: "))
-                commentary(match_id)
+                if ch != "preview":
+                    commentary(match_id)
+                else:
+                    print(colors("\nMatch has not yet started!\n", 31))
             elif ans == "3":
-                match_id = (input("\nEnter the Match ID of that match: "))
-                squad(match_id)
+                if ch != "preview":
+                    squad(match_id)
+                else:
+                    print(colors("\nMatch has not yet started!\n", 31))
 
             else:
                 print(colors("\nWrong choice!Please select a valid choice!\n", 31))
@@ -66,23 +63,24 @@ def main():
             print(colors("\nWrong choice!Please select a valid choice!\n", 31))
 
 
-def liveScore():
-    """To fetch the live score for a match using the cricbuzz object"""
+def Rmatches():
+    """To fetch the Recent matches held or upcoming or live matches using the cricbuzz object"""
 
     c = Cricbuzz()
     matches = c.matches()
-    counter = 0
     headers = ["S.No", "Id", "Head", "Teams", "MatchType", "Status"]
     my_data = []
-    for match in matches:
-        game = c.livescore(match['id'])
-        idey = game['matchinfo']['id']
-        head = game['matchinfo']['srs']
-        teams = game['matchinfo']['mchdesc']
-        matchType = game['matchinfo']['type']
-        status = game['matchinfo']['status']
-        counter = counter + 1
-        my_data.append([counter, idey, head, teams, matchType, status])
+    counter = 1
+    for counter, match in enumerate(matches, start=1):
+        try:
+            idey = matches[counter - 1]['id']
+            head = matches[counter - 1]['srs']
+            teams = matches[counter - 1]['mchdesc']
+            matchType = matches[counter - 1]['type']
+            status = matches[counter - 1]['status']
+            my_data.append([counter, idey, head, teams, matchType, status])
+        except KeyError:
+            pass
     print(colors(tabulate(my_data, headers=headers, tablefmt="fancy_grid"), 32))
 
 
@@ -105,11 +103,14 @@ def scoreCard(mid):
 
     c = Cricbuzz()
     matches = c.matches()
-    counter = 0
     my_data = []
     for match in matches:
         if match['id'] == mid:
             game = c.scorecard(match['id'])
+            status = game['matchinfo']['status']
+            desc = game['matchinfo']['mchdesc']
+            state = game['matchinfo']['mchstate']
+            print(colors("\n{} | {} | {}\n".format(desc, status, state), 33))
             try:
                 for i in range(2):
                     wickets = game['scorecard'][i]['wickets']
@@ -118,8 +119,8 @@ def scoreCard(mid):
                     overs = game['scorecard'][i]['overs']
                     batteam = game['scorecard'][i]['batteam']
                     runrate = game['scorecard'][i]['runrate']
-                    print("\n{}st INNINGS!\n".format(2 - i))
-                    print(colors("{} - {} / {}({} Ovs)".format(batteam, runs, wickets, overs), 32))
+
+                    print(colors("\n{} - {} / {}({} Ovs)".format(batteam, runs, wickets, overs), 32))
                     sleep(1)
                     print("\n--BATTING CARD--\n")
                     battCard(game, i)
@@ -192,22 +193,22 @@ def squad(mid):
     try:
         for i in range(2):
             my_data = []
-            counter = 1
             squad = game['squad'][i]['members']
             sq_team = game['squad'][i]['team']
             print(colors("\n--{} Squad--\n".format(sq_team), 32))
-            for member in game['squad'][i]['members']:
+            counter = 1
+            for counter, member in enumerate(game['squad'][i]['members'], start=1):
                 my_data.append([counter, member])
-                counter += 1
             print(tabulate(my_data, headers=header, tablefmt="fancy_grid"))
             print("\n")
+            sleep(1)
     except KeyError:
         game = c.commentary(mid)
         try:
             for i in range(1, 4):
                 print("\n" + game['commentary'][i])
 
-        except IndexError:
+        except (IndexError, KeyError):
             pass
 
 
@@ -215,18 +216,11 @@ def check(mid):
     """ To check is the match has already started or not"""
 
     c = Cricbuzz()
-    game = c.commentary(mid)
-    state = game['matchinfo']['mchstate']
-    if state.lower() == "preview":
-        return 1
-    elif state.lower() == "inprogress":
-        return 0
-    elif state.lower() == "innings break":
-        return 2
-    elif state.lower() == "result":
-        return -1
-    else:
-        sys.exit()
+    matches = c.matches()
+    for match in matches:
+        if match['id'] == mid:
+            return match['mchstate']
+            break
 
 
 def send(mid):
