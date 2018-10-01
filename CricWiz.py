@@ -7,7 +7,8 @@ import subprocess as s
 
 
 def main():
-
+    """Handle all the processing and choices
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("-l", "--livescore", required=True, help="Show the liveScore")
     args = vars(parser.parse_args())
